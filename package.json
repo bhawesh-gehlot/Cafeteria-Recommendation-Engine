@@ -1,0 +1,26 @@
+{
+  "name": "cafeteria-recommendation-engine",
+  "version": "1.0.0",
+  "description": "Cafeteria Recommendation Engine",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhawesh-gehlot/Cafeteria-Recommendation-Engine.git"
+  },
+  "author": "Bhawesh Gehlot",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bhawesh-gehlot/Cafeteria-Recommendation-Engine/issues"
+  },
+  "homepage": "https://github.com/bhawesh-gehlot/Cafeteria-Recommendation-Engine#readme",
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
