@@ -2,11 +2,11 @@
   "name": "cafeteria-recommendation-engine",
   "version": "1.0.0",
   "description": "Cafeteria Recommendation Engine",
-  "main": "dist/index.js",
+  "main": "src/app.ts",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "start:server": "ts-node src/server/index.ts",
+    "start:client": "ts-node src/client/index.ts",
+    "start": "npm run start:server & npm run start:client"
   },
   "repository": {
     "type": "git",
@@ -19,8 +19,17 @@
   },
   "homepage": "https://github.com/bhawesh-gehlot/Cafeteria-Recommendation-Engine#readme",
   "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/mysql": "^2.15.26",
     "@types/node": "^20.14.2",
+    "@types/ws": "^8.5.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.10.0",
+    "ws": "^8.17.0"
   }
 }
