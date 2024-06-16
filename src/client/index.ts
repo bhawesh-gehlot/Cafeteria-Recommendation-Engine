@@ -1,4 +1,8 @@
 import { WebSocketClient } from './websocketClient';
 
-const wsClient = new WebSocketClient();
-wsClient.connect();
+async function main() {
+    const wsClient = new WebSocketClient();
+    wsClient.connect();
+}
+
+main();
