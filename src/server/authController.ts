@@ -31,9 +31,11 @@ export class AuthController {
         let options: Array<string> = [];
         if (role === 'admin') {
             options = [
-                '1. Add a new food item',
-                '2. Modify an existing food item',
-                '3. Delete an existing food item from the menu'
+                '1. Add a food item',
+                '2. Remove an existing food item',
+                '3. Update the price of a food item',
+                '4. Update the availability of a food item',
+                '5. Logout',
             ];
         } else if (role === 'chef') {
             options = [
@@ -45,7 +47,8 @@ export class AuthController {
                 '6. Check responses for today\'s dinner',
                 '7. View unread notifications (if any)',
                 '8. Generate Monthly User Feedback report',
-                '9. See the menu'
+                '9. See the menu',
+                '10. Logout',
             ];
         } else if (role === 'employee') {
             options = [
@@ -56,7 +59,8 @@ export class AuthController {
                 '5. Rate today\'s lunch',
                 '6. Rate today\'s dinner',
                 '7. View unread notifications (if any)',
-                '8. See the menu'
+                '8. See the menu',
+                '9. Logout',
             ];
         }
 

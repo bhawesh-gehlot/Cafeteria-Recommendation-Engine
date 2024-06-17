@@ -75,11 +75,37 @@ export class WebSocketClient {
         const validOptions = this.options.map(option => option.split('.')[0].trim());
         if (validOptions.includes(choice)) {
             console.log(`You selected option ${choice}`);
-            // Handle the selected option logic here.
+            this.handleAdminOption(choice);
         } else {
             console.log('Invalid option. Please select a valid option.');
             this.options.forEach(option => console.log(option));
             this.promptForMenuOption();
+        }
+    }
+
+    async handleAdminOption(choice: string) {
+        if (choice === '1') {
+            const name = await getInput('Enter food item name: ');
+            const price = await getInput('Enter food item price: ');
+            const mealTime = await getInput('Enter meal time (Breakfast/Lunch/Dinner): ');
+            const availabilityStatus = await getInput('Enter availability status (0/1): ');
+
+            this.ws.send(JSON.stringify({ action: 'addFoodItem', name, price, mealTime, availabilityStatus }));
+        } else if (choice === '2') {
+            const name = await getInput('Enter the name of the food item to remove: ');
+            this.ws.send(JSON.stringify({ action: 'removeFoodItem', name }));
+        } else if (choice === '3') {
+            const name = await getInput('Enter the name of the food item to update the price: ');
+            const price = await getInput('Enter the new price: ');
+            this.ws.send(JSON.stringify({ action: 'updateFoodItemPrice', name, price }));
+        } else if (choice === '4') {
+            const name = await getInput('Enter the name of the food item to update the availability: ');
+            const availabilityStatus = await getInput('Enter new availability status (0/1): ');
+            this.ws.send(JSON.stringify({ action: 'updateFoodItemAvailability', name, availabilityStatus }));
+        } else if (choice === '5') {
+            process.stdout.write('\x1Bc')
+            console.log("Thank You for using Cafeteria Recommendation System....");
+            process.exit(0);
         }
     }
 

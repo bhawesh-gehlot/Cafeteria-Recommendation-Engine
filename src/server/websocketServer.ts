@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { Server } from 'http';
 import { AuthController } from './authController';
+import { MenuController } from './menuController';
 
 export class WebSocketServer {
     private wss: WebSocket.Server;
@@ -20,6 +21,14 @@ export class WebSocketServer {
                     await AuthController.checkUserExists(ws, data);
                 } else if (data.action === 'login') {
                     await AuthController.login(ws, data);
+                } else if (data.action === 'addFoodItem') {
+                    MenuController.handleAddFoodItem(ws, data);
+                } else if (data.action === 'removeFoodItem') {
+                    MenuController.handleRemoveFoodItem(ws, data);
+                } else if (data.action === 'updateFoodItemPrice') {
+                    MenuController.handleUpdateFoodItemPrice(ws, data);
+                } else if (data.action === 'updateFoodItemAvailability') {
+                    MenuController.handleUpdateFoodItemAvailability(ws, data);
                 }
             });
 
