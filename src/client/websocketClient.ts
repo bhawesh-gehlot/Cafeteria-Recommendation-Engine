@@ -7,6 +7,7 @@ export class WebSocketClient {
     private retries: number = 0;
     private maxRetries: number = 3;
     private options: string[] = [];
+    private role: string;
 
     connect() {
         this.ws = new WebSocket('ws://localhost:8080');
@@ -48,11 +49,14 @@ export class WebSocketClient {
             }
         } else if (response.status === 'success') {
             console.log(response.message);
+            this.role = response.role;
         } else if (response.status === 'menu') {
             console.log(response.message);
             this.options = response.options;
             this.options.forEach(option => console.log(option));
             this.promptForMenuOption();
+        } else if (response.status === 'showRecommendations') {
+            this.showRecommendations(response.recommendedItems);
         }
     }
 
@@ -75,7 +79,13 @@ export class WebSocketClient {
         const validOptions = this.options.map(option => option.split('.')[0].trim());
         if (validOptions.includes(choice)) {
             console.log(`You selected option ${choice}`);
-            this.handleAdminOption(choice);
+            if (this.role === 'admin') {
+                this.handleAdminOptions(choice);
+            } else if (this.role === 'chef') {
+                this.handleChefOptions(choice);
+            } else if (this.role === 'employee') {
+                this.handleEmployeeOptions(choice);
+            }
         } else {
             console.log('Invalid option. Please select a valid option.');
             this.options.forEach(option => console.log(option));
@@ -83,7 +93,7 @@ export class WebSocketClient {
         }
     }
 
-    async handleAdminOption(choice: string) {
+    async handleAdminOptions(choice: string) {
         if (choice === '1') {
             const name = await getInput('Enter food item name: ');
             const price = await getInput('Enter food item price: ');
@@ -109,11 +119,72 @@ export class WebSocketClient {
         }
     }
 
+    async handleChefOptions(choice: string) {
+        if (choice === '1') {
+            this.ws.send(JSON.stringify({ action: 'getRecommendation' }));
+        } else if (choice === '2') {
+            
+        } else if (choice === '3') {
+            
+        } else if (choice === '4') {
+            
+        } else if (choice === '5') {
+            
+        } else if (choice === '6') {
+            
+        } else if (choice === '7') {
+            
+        } else if (choice === '8') {
+            
+        } else if (choice === '9') {
+            
+        } else if (choice === '10') {
+            
+        } else if (choice === '11') {
+            process.stdout.write('\x1Bc')
+            console.log("Thank You for using Cafeteria Recommendation System....");
+            process.exit(0);
+        }
+    }
+
+    async handleEmployeeOptions(choice: string) {
+        if (choice === '1') {
+            
+        } else if (choice === '2') {
+            
+        } else if (choice === '3') {
+            
+        } else if (choice === '4') {
+            
+        } else if (choice === '5') {
+            
+        } else if (choice === '6') {
+            
+        } else if (choice === '7') {
+            
+        } else if (choice === '8') {
+            
+        } else if (choice === '9') {
+            process.stdout.write('\x1Bc')
+            console.log("Thank You for using Cafeteria Recommendation System....");
+            process.exit(0);
+        }
+    }
+
     checkUserExists(username: string) {
         this.ws.send(JSON.stringify({ action: 'checkUserExists', username }));
     }
 
     login(username: string, password: string) {
         this.ws.send(JSON.stringify({ action: 'login', username, password }));
+    }
+
+    showRecommendations(recommendedItems) {
+        console.log('Recommended Items:');
+        recommendedItems.forEach((item: any) => {
+            console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Availablility: ${item.availability_status ? 'Available' : 'Unavailable'}`);
+            console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
+            console.log('---');
+        });
     }
 }
