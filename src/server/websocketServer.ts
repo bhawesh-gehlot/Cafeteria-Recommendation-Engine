@@ -31,6 +31,8 @@ export class WebSocketServer {
                     MenuController.handleUpdateFoodItemAvailability(ws, data);
                 } else if (data.action === 'getRecommendation') {
                     MenuController.displayRecommendations(ws);
+                } else if (data.action === 'getMenu') {
+                    MenuController.displayMenu(ws);
                 }
             });
 

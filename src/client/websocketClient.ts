@@ -48,6 +48,7 @@ export class WebSocketClient {
                 this.ws.close();
             }
         } else if (response.status === 'success') {
+            process.stdout.write('\x1Bc');
             console.log(response.message);
             this.role = response.role;
         } else if (response.status === 'menu') {
@@ -57,6 +58,8 @@ export class WebSocketClient {
             this.promptForMenuOption();
         } else if (response.status === 'showRecommendations') {
             this.showRecommendations(response.recommendedItems);
+        } else if (response.status === 'displayMenu') {
+            this.displayMenu(response.menuItems);
         }
     }
 
@@ -78,6 +81,7 @@ export class WebSocketClient {
 
         const validOptions = this.options.map(option => option.split('.')[0].trim());
         if (validOptions.includes(choice)) {
+            process.stdout.write('\x1Bc');
             console.log(`You selected option ${choice}`);
             if (this.role === 'admin') {
                 this.handleAdminOptions(choice);
@@ -123,7 +127,7 @@ export class WebSocketClient {
         if (choice === '1') {
             this.ws.send(JSON.stringify({ action: 'getRecommendation' }));
         } else if (choice === '2') {
-            
+            this.ws.send(JSON.stringify({ action: 'getMenu' }));
         } else if (choice === '3') {
             
         } else if (choice === '4') {
@@ -163,9 +167,9 @@ export class WebSocketClient {
         } else if (choice === '7') {
             
         } else if (choice === '8') {
-            
+            this.ws.send(JSON.stringify({ action: 'getMenu' }));
         } else if (choice === '9') {
-            process.stdout.write('\x1Bc')
+            process.stdout.write('\x1Bc');
             console.log("Thank You for using Cafeteria Recommendation System....");
             process.exit(0);
         }
@@ -185,6 +189,15 @@ export class WebSocketClient {
             console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Availablility: ${item.availability_status ? 'Available' : 'Unavailable'}`);
             console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
             console.log('---');
+        });
+    }
+
+    displayMenu(menuItems) {
+        console.log('----------Menu----------');
+        menuItems.forEach((item: any) => {
+            console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Availablility: ${item.availability_status ? 'Available' : 'Unavailable'}`);
+            console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
+            console.log('---------------------------');
         });
     }
 }
