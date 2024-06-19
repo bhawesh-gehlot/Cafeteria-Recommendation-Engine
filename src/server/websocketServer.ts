@@ -29,6 +29,8 @@ export class WebSocketServer {
                     MenuController.handleUpdateFoodItemPrice(ws, data);
                 } else if (data.action === 'updateFoodItemAvailability') {
                     MenuController.handleUpdateFoodItemAvailability(ws, data);
+                } else if (data.action === 'getRecommendation') {
+                    MenuController.displayRecommendations(ws);
                 }
             });
 

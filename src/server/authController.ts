@@ -20,7 +20,7 @@ export class AuthController {
 
         if (authenticated) {
             const role = await AuthController.authService.getUserRole(username);
-            ws.send(JSON.stringify({ status: 'success', role, message: `Welcome ${role}!` }));
+            ws.send(JSON.stringify({ status: 'success', role: role, message: `Welcome ${role}!` }));
             AuthController.sendMenuOptions(ws, role);
         } else {
             ws.send(JSON.stringify({ status: 'error', message: 'Invalid password. Please try again.' }));
@@ -39,16 +39,17 @@ export class AuthController {
             ];
         } else if (role === 'chef') {
             options = [
-                '1. Rollout breakfast for tomorrow',
-                '2. Rollout lunch for tomorrow',
-                '3. Rollout dinner for tomorrow',
-                '4. Check responses for today\'s breakfast',
-                '5. Check responses for today\'s lunch',
-                '6. Check responses for today\'s dinner',
-                '7. View unread notifications (if any)',
-                '8. Generate Monthly User Feedback report',
-                '9. See the menu',
-                '10. Logout',
+                '1. Check Recommended Food Items',
+                '2. See the Menu',
+                '3. Rollout breakfast for tomorrow',
+                '4. Rollout lunch for tomorrow',
+                '5. Rollout dinner for tomorrow',
+                '6. Check responses for today\'s breakfast',
+                '7. Check responses for today\'s lunch',
+                '8. Check responses for today\'s dinner',
+                '9. View unread notifications (if any)',
+                '10. Generate Monthly User Feedback report',
+                '11. Logout',
             ];
         } else if (role === 'employee') {
             options = [
@@ -59,7 +60,7 @@ export class AuthController {
                 '5. Rate today\'s lunch',
                 '6. Rate today\'s dinner',
                 '7. View unread notifications (if any)',
-                '8. See the menu',
+                '8. See the Menu',
                 '9. Logout',
             ];
         }
