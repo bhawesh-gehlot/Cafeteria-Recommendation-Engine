@@ -41,20 +41,17 @@ export class MenuController {
         ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? 'Food item availability updated successfully.' : 'Failed to update food item availability.' }));
     }
 
-    static async displayMenu() {
+    static async displayMenu(ws) {
         await calculateSentiments();
     
         const [menuItems] = await pool.query<MenuItem[]>(`
             SELECT m.*, s.sentiment, s.average_rating, s.sentiment_score 
             FROM Menu m 
             LEFT JOIN Sentiments s ON m.menu_item_id = s.menu_item_id`);
+
+        ws.send(JSON.stringify({ status: menuItems ? 'displayMenu' : 'error', menuItems }));
     
-        console.log('Menu:');
-        menuItems.forEach((item: any) => {
-            console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Available: ${item.availability_status}`);
-            console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
-            console.log('---');
-        });
+        
     }
 
     static async displayRecommendations(ws) {
@@ -66,6 +63,7 @@ export class MenuController {
             LEFT JOIN Sentiments s ON m.menu_item_id = s.menu_item_id 
             ORDER BY s.average_rating DESC 
             LIMIT 5`);
+    
         ws.send(JSON.stringify({ status: recommendedItems ? 'showRecommendations' : 'error', recommendedItems }));
     }
 }
