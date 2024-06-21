@@ -2,6 +2,8 @@ import WebSocket from 'ws';
 import { Server } from 'http';
 import { AuthController } from './authController';
 import { MenuController } from './menuController';
+import { NotificationController } from './notificationController';
+import { AuthService } from '../services/authService';
 
 export class WebSocketServer {
     private wss: WebSocket.Server;
@@ -33,6 +35,28 @@ export class WebSocketServer {
                     MenuController.displayRecommendations(ws);
                 } else if (data.action === 'getMenu') {
                     MenuController.displayMenu(ws);
+                } else if (data.action === 'getTopRecommendations') {
+                    MenuController.getTopRecommendations(ws);
+                } else if (data.action === 'rolloutFoodItem') {
+                    MenuController.rolloutFoodItems(ws, data);
+                } else if (data.action === 'voteFood') {
+                    MenuController.voteFoodItem(ws, data);
+                } else if (data.action === 'checkResponses') {
+                    MenuController.checkResponses(ws);
+                } else if (data.action === 'selectTodayMeal') {
+                    MenuController.selectTodayMeal(ws);
+                } else if (data.action === 'getNotifications') {
+                    NotificationController.getNotifications(ws, data);
+                } else if (data.action === 'getRolloutItems') {
+                    MenuController.getRolloutItems(ws);
+                } else if (data.action === 'saveSelectedMeal') {
+                    MenuController.saveSelectedMeal(ws, data);
+                } else if (data.action === 'giveFeedback') {
+                    MenuController.giveFeedback(ws);
+                } else if (data.action === 'LogLogout') {
+                    AuthService.logLogin(data.username, 'Logout');
+                } else if (data.action === 'provideFeedback') {
+                    MenuController.saveFeedback(ws, data);
                 }
             });
 
