@@ -38,4 +38,18 @@ export class AuthService {
             connection.release();
         }
     }
+
+    static async logLogin(username, logType) {
+        const date = new Date()
+        const connection = await pool.getConnection();
+        try {
+            const [rows]: any[] = await connection.query('SELECT emp_id FROM Users WHERE username = ?', [username]);
+            if (rows.length > 0) {
+                await connection.query('INSERT INTO LoginLog (emp_id, log_type, date) VALUES (?, ?, ?)', [rows[0].emp_id, logType, date]);
+            }
+            return null;
+        } finally {
+            connection.release();
+        }
+    }
 }

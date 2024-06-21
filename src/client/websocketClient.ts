@@ -39,7 +39,7 @@ export class WebSocketClient {
             console.log(response.message);
             this.promptForPassword();
         } else if (response.status === 'error') {
-            console.log(response.message);
+            console.log(response?.message ? response.message : response);
             this.retries++;
             if (this.retries < this.maxRetries) {
                 this.promptForPassword();
@@ -60,6 +60,14 @@ export class WebSocketClient {
             this.showRecommendations(response.recommendedItems);
         } else if (response.status === 'displayMenu') {
             this.displayMenu(response.menuItems);
+        } else if (response.status === 'printMessage') {
+            console.log(response.message);
+        } else if (response.status === 'showNotifications') {
+            this.showNotifications(response.notifications);
+        } else if (response.status === 'selectMeal') {
+            this.selectMeal();
+        } else if (response.status === 'selectedMenuItems') {
+            this.giveFeedback(response.selectedItems);
         }
     }
 
@@ -101,7 +109,7 @@ export class WebSocketClient {
         if (choice === '1') {
             const name = await getInput('Enter food item name: ');
             const price = await getInput('Enter food item price: ');
-            const mealTime = await getInput('Enter meal time (Breakfast/Lunch/Dinner): ');
+            const mealTime = await getInput('Enter meal time (breakfast/lunch/dinner): ');
             const availabilityStatus = await getInput('Enter availability status (0/1): ');
 
             this.ws.send(JSON.stringify({ action: 'addFoodItem', name, price, mealTime, availabilityStatus }));
@@ -117,7 +125,8 @@ export class WebSocketClient {
             const availabilityStatus = await getInput('Enter new availability status (0/1): ');
             this.ws.send(JSON.stringify({ action: 'updateFoodItemAvailability', name, availabilityStatus }));
         } else if (choice === '5') {
-            process.stdout.write('\x1Bc')
+            process.stdout.write('\x1Bc');
+            this.ws.send(JSON.stringify({ action: 'LogLogout' }));
             console.log("Thank You for using Cafeteria Recommendation System....");
             process.exit(0);
         }
@@ -129,23 +138,21 @@ export class WebSocketClient {
         } else if (choice === '2') {
             this.ws.send(JSON.stringify({ action: 'getMenu' }));
         } else if (choice === '3') {
-            
+            this.ws.send(JSON.stringify({ action: 'getTopRecommendations' }));
+            setTimeout(async () => {
+                await this.rolloutFoodItems();
+            }, 200);
         } else if (choice === '4') {
-            
+            this.ws.send(JSON.stringify({ action: 'checkResponses' }));
         } else if (choice === '5') {
-            
+            this.ws.send(JSON.stringify({ action: 'selectTodayMeal' }));
         } else if (choice === '6') {
-            
+            this.ws.send(JSON.stringify({ action: 'getNotifications', userRole: 'chef' }));
         } else if (choice === '7') {
-            
+            console.log("Coming Soon......................!");
         } else if (choice === '8') {
-            
-        } else if (choice === '9') {
-            
-        } else if (choice === '10') {
-            
-        } else if (choice === '11') {
-            process.stdout.write('\x1Bc')
+            process.stdout.write('\x1Bc');
+            this.ws.send(JSON.stringify({ action: 'LogLogout' , username: this.username}));
             console.log("Thank You for using Cafeteria Recommendation System....");
             process.exit(0);
         }
@@ -153,23 +160,19 @@ export class WebSocketClient {
 
     async handleEmployeeOptions(choice: string) {
         if (choice === '1') {
-            
+            this.ws.send(JSON.stringify({ action: 'getRolloutItems' }));
+            setTimeout(async () => {
+                await this.voteTomorrowFood();
+            }, 200);
         } else if (choice === '2') {
-            
+            this.ws.send(JSON.stringify({ action: 'giveFeedback', username: this.username }));
         } else if (choice === '3') {
-            
+            this.ws.send(JSON.stringify({ action: 'getNotifications', userRole: 'employee' }));
         } else if (choice === '4') {
-            
-        } else if (choice === '5') {
-            
-        } else if (choice === '6') {
-            
-        } else if (choice === '7') {
-            
-        } else if (choice === '8') {
             this.ws.send(JSON.stringify({ action: 'getMenu' }));
-        } else if (choice === '9') {
+        } else if (choice === '5') {
             process.stdout.write('\x1Bc');
+            this.ws.send(JSON.stringify({ action: 'LogLogout' }));
             console.log("Thank You for using Cafeteria Recommendation System....");
             process.exit(0);
         }
@@ -199,5 +202,53 @@ export class WebSocketClient {
             console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
             console.log('---------------------------');
         });
+    }
+
+    async rolloutFoodItems() {
+        const mealTimes = ['breakfast', 'lunch', 'dinner'];
+        for (const mealTime of mealTimes) {
+            console.log(`Please enter the names of three items for ${mealTime}:`);
+            const items: Array<string> = [];
+            for (let i = 0; i < 3; i++) {
+                const item = await getInput(`Enter item ${i + 1}: `);
+                items.push(item);
+            }
+            this.ws.send(JSON.stringify({ action: 'rolloutFoodItem', mealTime, items }));
+        }
+        console.log('Menu items rolled out successfully.');
+    }
+
+    async voteTomorrowFood() {
+        const mealTimes = ['breakfast', 'lunch', 'dinner'];
+        for (const mealTime of mealTimes) {
+            console.log(`Please select one item for ${mealTime}:`);
+            const item = await getInput('Enter item: ');
+            this.ws.send(JSON.stringify({ action: 'voteFood', username: this.username, item, mealTime }));
+        }
+        console.log('Your responses have been recorded successfully.');
+    }
+
+    async showNotifications(notifications) {
+        console.log(`Latest Notifications for ${this.username}:`);
+        notifications.forEach((notification: any) => {
+            notification.date_created = (new Date(notification.date_created)).toISOString();
+            console.log(`${notification.date_created}: ${notification.message}`);
+        });
+    }
+
+    async selectMeal() {
+        const mealForBreakfast = await getInput('Enter Meal to be cooked for breakfast: ');
+        const mealForLunch = await getInput('Enter Meal to be cooked for lunch: ');
+        const mealForDinner = await getInput('Enter Meal to be cooked for dinner: ');
+        this.ws.send(JSON.stringify({ action: 'saveSelectedMeal', mealForBreakfast, mealForLunch, mealForDinner }));
+    }
+
+    async giveFeedback(selectedItems) {
+        for(const selectedItem of selectedItems) {
+            const rating = await getInput(`Please Rate meal for today\'s ${selectedItem.meal_time}: `);
+            const comment = await getInput(`Please give a comment for meal for today\'s ${selectedItem.meal_time}: `);
+            this.ws.send(JSON.stringify({ action: 'provideFeedback', menu_item_id: selectedItem.menu_item_id, username: this.username, rating, comment }));
+        }
+        console.log('Feedback saved successfully.');
     }
 }
