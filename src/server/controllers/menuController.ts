@@ -1,5 +1,5 @@
 import { MenuService } from '../services/menuService';
-import pool from '../utils/db';
+import pool from '../../utils/db';
 import { calculateSentiments } from '../services/sentimentService';
 import { RowDataPacket } from 'mysql2';
 import { createNotification } from '../services/notificationService';

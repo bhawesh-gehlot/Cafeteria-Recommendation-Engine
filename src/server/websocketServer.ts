@@ -1,8 +1,8 @@
 import WebSocket from 'ws';
 import { Server } from 'http';
-import { AuthController } from './authController';
-import { MenuController } from './menuController';
-import { NotificationController } from './notificationController';
+import { AuthController } from './controllers/authController';
+import { MenuController } from './controllers/menuController';
+import { NotificationController } from './controllers/notificationController';
 import { AuthService } from '../services/authService';
 
 export class WebSocketServer {
