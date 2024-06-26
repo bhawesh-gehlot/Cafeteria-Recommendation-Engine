@@ -3,7 +3,7 @@ import { Server } from 'http';
 import { AuthController } from './controllers/authController';
 import { MenuController } from './controllers/menuController';
 import { NotificationController } from './controllers/notificationController';
-import { AuthService } from '../services/authService';
+import { AuthService } from './services/authService';
 
 export class WebSocketServer {
     private wss: WebSocket.Server;

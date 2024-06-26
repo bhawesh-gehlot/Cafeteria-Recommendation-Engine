@@ -1,5 +1,5 @@
 import { ResultSetHeader } from 'mysql2';
-import pool from '../utils/db';
+import pool from '../../utils/db';
 
 export async function createNotification(userRole: string, message: string) {
     await pool.query('INSERT INTO Notifications (user_role, message) VALUES (?, ?)', [userRole, message]);

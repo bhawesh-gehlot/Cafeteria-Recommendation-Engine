@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import pool from '../utils/db';
+import pool from '../../utils/db';
 
 export class AuthService {
     async userExists(username: string): Promise<boolean> {
