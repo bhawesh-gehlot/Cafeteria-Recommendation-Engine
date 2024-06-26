@@ -1,5 +1,5 @@
 import { WebSocketClient } from './websocketClient';
-import { getInput } from '../utils/consoleInput';
+import { getInput } from './utils/consoleInput';
 
 export class Authentication {
     private client: WebSocketClient;

@@ -1,5 +1,5 @@
 import { WebSocketClient } from './websocketClient';
-import { getInput } from '../utils/consoleInput';
+import { getInput } from './utils/consoleInput';
 
 export class Menu {
     private client: WebSocketClient;
@@ -8,11 +8,10 @@ export class Menu {
         this.client = client;
     }
 
-    handleResponse(response: any) {
-        console.log(response.message);
-        this.client.setOptions(response.options);
+    async handleResponse(options: any) {
+        this.client.setOptions(options);
         this.client.getOptions().forEach(option => console.log(option));
-        this.promptForMenuOption();
+        await this.promptForMenuOption();
     }
 
     async promptForMenuOption() {
@@ -107,7 +106,9 @@ export class Menu {
                 this.client.send({ action: 'getNotifications', userRole: 'chef' });
                 break;
             case '7':
-                console.log("Coming Soon......................!");
+                console.log("Coming Soon......................!\n");
+                console.log("Please choose one of the following options:");
+                this.handleResponse(this.client.getOptions());
                 break;
             case '8':
                 process.stdout.write('\x1Bc');
@@ -165,7 +166,9 @@ export class Menu {
             }
             this.client.send({ action: 'rolloutFoodItem', mealTime, items });
         }
-        console.log('Menu items rolled out successfully.');
+        console.log('Menu items rolled out successfully.\n');
+        console.log("Please choose one of the following options:");
+        this.handleResponse(this.client.getOptions());
     }
 
     async voteTomorrowFood() {
@@ -175,7 +178,9 @@ export class Menu {
             const item = await getInput('Enter item: ');
             this.client.send({ action: 'voteFood', username: this.client.getUsername(), item, mealTime });
         }
-        console.log('Your responses have been recorded successfully.');
+        console.log('Your responses have been recorded successfully.\n');
+        console.log("Please choose one of the following options:");
+        this.handleResponse(this.client.getOptions());
     }
 
     async selectMeal() {
@@ -190,16 +195,16 @@ export class Menu {
         recommendedItems.forEach((item: any) => {
             console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Availablility: ${item.availability_status ? 'Available' : 'Unavailable'}`);
             console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
-            console.log('---');
+            console.log('----------------------------------------------------------------------------');
         });
     }
 
     displayMenu(menuItems) {
-        console.log('----------Menu----------');
+        console.log('------------------------------------Menu------------------------------------');
         menuItems.forEach((item: any) => {
             console.log(`Name: ${item.item_name}, Price: ${item.price}, Meal Time: ${item.meal_time}, Availablility: ${item.availability_status ? 'Available' : 'Unavailable'}`);
             console.log(`Rating: ${item.average_rating}, Sentiment: ${item.sentiment} (Score: ${item.sentiment_score})`);
-            console.log('---------------------------');
+            console.log('----------------------------------------------------------------------------');
         });
     }
 }

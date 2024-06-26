@@ -1,124 +1,150 @@
-import { MenuService } from '../services/menuService';
-import pool from '../../utils/db';
-import { calculateSentiments } from './recommendationController';
-import { RowDataPacket } from 'mysql2';
-import { createNotification } from '../services/notificationService';
-
-interface MenuItem extends RowDataPacket {
-    menu_item_id: number;
-    item_name: string;
-    price: number;
-    meal_time: string;
-    availability_status: string;
-    sentiment: string | null;
-    average_rating: number | null;
-    sentiment_score: number | null;
-}
+import { MenuDB } from '../dbLayer/menuDB';
+import { RecommendationController } from './recommendationController';
+import { NotificationDB } from '../dbLayer/notificationDB';
 
 export class MenuController {
-    private static menuService = new MenuService();
+    private menuDB: MenuDB;
+    private notificationDB: NotificationDB;
+    private recommendationController: RecommendationController;
 
-    static async handleAddFoodItem(ws, data) {
+    constructor() {
+        this.menuDB = new MenuDB();
+        this.notificationDB = new NotificationDB();
+        this.recommendationController = new RecommendationController();
+    }
+
+    private async handleAction(
+        ws: WebSocket,
+        action: () => Promise<boolean>,
+        successMessage: string,
+        errorMessage: string,
+        notifications: { role: string, message: string }[] = []
+    ) {
+        const success = await action();
+        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? successMessage : errorMessage }));
+
+        if (success) {
+            notifications.forEach((notification) => this.notificationDB.createNotification(notification.role, notification.message));
+        }
+    }
+
+    async handleAddFoodItem(ws, data: any) {
         const { name, price, mealTime, availabilityStatus } = data;
-        const success = await MenuController.menuService.addFoodItem(name, parseFloat(price), mealTime, availabilityStatus);
-        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? 'Food item added successfully.' : 'Failed to add food item.' }));
-        createNotification('employee', `${name} is now available in cafeteria for Rs. ${price} at ${mealTime}.`);
-        createNotification('chef', `${name} is now available in cafeteria for Rs. ${price} at ${mealTime}.`);
+        await this.handleAction(
+            ws,
+            () => this.menuDB.addFoodItem(name, parseFloat(price), mealTime, availabilityStatus),
+            'Food item added successfully.',
+            'Failed to add food item.',
+            [
+                { role: 'employee', message: `${name} is now available in cafeteria for Rs. ${price} at ${mealTime}.` },
+                { role: 'chef', message: `${name} is now available in cafeteria for Rs. ${price} at ${mealTime}.` }
+            ]
+        );
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async handleRemoveFoodItem(ws, data) {
+    async handleRemoveFoodItem(ws, data: any) {
         const { name } = data;
-        const success = await MenuController.menuService.removeFoodItem(name);
-        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? 'Food item removed successfully.' : 'Failed to remove food item.' }));
-        createNotification('employee', `${name} is now removed from cafeteria.`);
-        createNotification('chef', `${name} is now removed from cafeteria.`);
+        await this.handleAction(
+            ws,
+            () => this.menuDB.removeFoodItem(name),
+            'Food item removed successfully.',
+            'Failed to remove food item.',
+            [
+                { role: 'employee', message: `${name} is now removed from cafeteria.` },
+                { role: 'chef', message: `${name} is now removed from cafeteria.` }
+            ]
+        );
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async handleUpdateFoodItemPrice(ws, data) {
+    async handleUpdateFoodItemPrice(ws, data: any) {
         const { name, price } = data;
-        const success = await MenuController.menuService.updateFoodItemPrice(name, parseFloat(price));
-        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? 'Food item price updated successfully.' : 'Failed to update food item price.' }));
-        createNotification('employee', `Price for ${name} is updated to Rs. ${price}.`);
-        createNotification('chef', `Price for ${name} is updated to Rs. ${price}.`);
+        await this.handleAction(
+            ws,
+            () => this.menuDB.updateFoodItemPrice(name, parseFloat(price)),
+            'Food item price updated successfully.',
+            'Failed to update food item price.',
+            [
+                { role: 'employee', message: `Price for ${name} is updated to Rs. ${price}.` },
+                { role: 'chef', message: `Price for ${name} is updated to Rs. ${price}.` }
+            ]
+        );
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async handleUpdateFoodItemAvailability(ws, data) {
+    async handleUpdateFoodItemAvailability(ws, data: any) {
         const { name, availabilityStatus } = data;
-        const success = await MenuController.menuService.updateFoodItemAvailability(name, availabilityStatus);
-        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? 'Food item availability updated successfully.' : 'Failed to update food item availability.' }));
-        createNotification('employee', `${name} is ${availabilityStatus ? 'now available' : 'unavailable'} in cafeteria.`);
-        createNotification('chef', `${name} is ${availabilityStatus ? 'now available' : 'unavailable'} in cafeteria.`);
+        await this.handleAction(
+            ws,
+            () => this.menuDB.updateFoodItemAvailability(name, availabilityStatus),
+            'Food item availability updated successfully.',
+            'Failed to update food item availability.',
+            [
+                { role: 'employee', message: `${name} is ${availabilityStatus ? 'now available' : 'unavailable'} in cafeteria.` },
+                { role: 'chef', message: `${name} is ${availabilityStatus ? 'now available' : 'unavailable'} in cafeteria.` }
+            ]
+        );
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async displayMenu(ws) {
-        await calculateSentiments();
-    
-        const [menuItems] = await pool.query<MenuItem[]>(`
-            SELECT m.*, s.sentiment, s.average_rating, s.sentiment_score 
-            FROM Menu m 
-            LEFT JOIN Sentiments s ON m.menu_item_id = s.menu_item_id`);
-
+    async displayMenu(ws) {
+        await this.recommendationController.calculateSentiments();
+        const menuItems = await this.menuDB.getMenu();
         ws.send(JSON.stringify({ status: menuItems ? 'displayMenu' : 'error', menuItems }));
-    
-        
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async displayRecommendations(ws) {
-        await calculateSentiments();
-    
-        const [recommendedItems] = await pool.query<MenuItem[]>(`
-            SELECT m.*, s.sentiment, s.average_rating, s.sentiment_score 
-            FROM Menu m 
-            LEFT JOIN Sentiments s ON m.menu_item_id = s.menu_item_id 
-            ORDER BY s.average_rating DESC 
-            LIMIT 5`);
-    
-        ws.send(JSON.stringify({ status: recommendedItems ? 'showRecommendations' : 'error', recommendedItems }));
+    async displayRecommendations(ws) {
+        await this.recommendationController.calculateSentiments();
+        const menuItems = await this.menuDB.getRecommendations();
+        ws.send(JSON.stringify({ status: menuItems ? 'showRecommendations' : 'error', menuItems }));
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async getTopRecommendations(ws) {
+    async getTopRecommendations(ws) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            const recommendedItems = await MenuController.menuService.getRecommendedItems(mealTime);
+            const recommendedItems = await this.menuDB.getRecommendedItems(mealTime);
             const message = `Top recommended items for ${mealTime}: ${recommendedItems}`;
             ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
         }
     }
 
-    static async rolloutFoodItems(ws, data) {
+    async rolloutFoodItems(ws, data: any) {
         const { mealTime, items } = data;
-        const message = await MenuController.menuService.rolloutMenuItems(mealTime, items, ws);
-        createNotification('employee', `Chef has rolled out ${items} for tomorrow's ${mealTime}.`);
+        const message = await this.menuDB.rolloutMenuItems(mealTime, items, ws);
+        this.notificationDB.createNotification('employee', `Chef has rolled out ${items} for tomorrow's ${mealTime}.`);
     }
 
-    static async getRolloutItems(ws) {
+    async getRolloutItems(ws) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            const rolledOutItems = await MenuController.menuService.getRolledOutItems(mealTime);
+            const rolledOutItems = await this.menuDB.getRolledOutItems(mealTime);
             const message = `Rolled out items for ${mealTime}: ${rolledOutItems}`;
             ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
         }
     }
 
-    static async voteFoodItem(ws, data) {
+    async voteFoodItem(ws, data: any) {
         const { username, item, mealTime } = data;
-        const message = await MenuController.menuService.selectMenuItem(username, item, mealTime, ws);
+        await this.menuDB.selectMenuItem(username, item, mealTime, ws);
     }
 
-    static async checkResponses(ws) {
+    async checkResponses(ws) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            const message = await MenuController.menuService.checkResponses(mealTime);
+            const message = await this.menuDB.checkResponses(mealTime);
             ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
         }
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async selectTodayMeal(ws) {
+    async selectTodayMeal(ws) {
         const today = new Date().toISOString().slice(0, 10);
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            const responses = await MenuController.menuService.selectFoodToPrepare(today, mealTime);
-
+            const responses = await this.menuDB.selectFoodToPrepare(today, mealTime);
             responses.forEach((response: any) => {
                 const message = `Item: ${response.item_name}, Votes: ${response.vote_count}`;
                 ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
@@ -129,17 +155,18 @@ export class MenuController {
         }, 200);
     }
 
-    static async saveSelectedMeal(ws, data) {
-        const message = await MenuController.menuService.saveSelectedMeal(data);
+    async saveSelectedMeal(ws, data: any) {
+        const message = await this.menuDB.saveSelectedMeal(data);
         ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+        ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    static async giveFeedback(ws) {
-        const row = await MenuController.menuService.getSelectedMeal();
+    async giveFeedback(ws) {
+        const row = await this.menuDB.getSelectedMeal();
         ws.send(JSON.stringify({ status: 'selectedMenuItems', selectedItems: row }));
     }
 
-    static async saveFeedback(ws, data) {
-        const isSaved = await MenuController.menuService.provideFeedback(data);
+    async saveFeedback(ws, data: any) {
+        await this.menuDB.provideFeedback(data);
     }
 }

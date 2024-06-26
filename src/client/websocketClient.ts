@@ -21,7 +21,7 @@ export class WebSocketClient {
         this.auth = new Authentication(this);
         this.menu = new Menu(this);
         this.notification = new Notification(this);
-        this.feedback = new Feedback(this);
+        this.feedback = new Feedback(this, this.menu);
     }
 
     connect() {
@@ -55,10 +55,11 @@ export class WebSocketClient {
                 this.auth.handleResponse(response);
                 break;
             case 'menu':
-                this.menu.handleResponse(response);
+                console.log(response.message);
+                response.options ? this.menu.handleResponse(response.options) : this.menu.handleResponse(this.options);
                 break;
             case 'showRecommendations':
-                this.menu.showRecommendations(response.recommendedItems);
+                this.menu.showRecommendations(response.menuItems);
                 break;
             case 'displayMenu':
                 this.menu.displayMenu(response.menuItems);
@@ -93,7 +94,9 @@ export class WebSocketClient {
     }
 
     setRole(role: string) {
-        this.role = role;
+        if (!this.role) {
+            this.role = role;
+        }
     }
 
     getRole(): string {

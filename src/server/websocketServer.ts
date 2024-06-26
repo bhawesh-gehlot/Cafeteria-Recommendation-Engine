@@ -3,13 +3,21 @@ import { Server } from 'http';
 import { AuthController } from './controllers/authController';
 import { MenuController } from './controllers/menuController';
 import { NotificationController } from './controllers/notificationController';
-import { AuthService } from './services/authService';
+import { AuthDB } from './dbLayer/authDB';
 
 export class WebSocketServer {
     private wss: WebSocket.Server;
+    private menuController: MenuController;
+    private notificationController: NotificationController;
+    private authController: AuthController;
+    private authDB: AuthDB;
 
     constructor(server: Server) {
         this.wss = new WebSocket.Server({ server });
+        this.menuController = new MenuController();
+        this.notificationController = new NotificationController();
+        this.authController = new AuthController(new AuthDB());
+        this.authDB = new AuthDB();
     }
 
     start() {
@@ -18,51 +26,77 @@ export class WebSocketServer {
 
             ws.on('message', async (message) => {
                 const data = JSON.parse(message.toString());
-
-                if (data.action === 'checkUserExists') {
-                    await AuthController.checkUserExists(ws, data);
-                } else if (data.action === 'login') {
-                    await AuthController.login(ws, data);
-                } else if (data.action === 'addFoodItem') {
-                    MenuController.handleAddFoodItem(ws, data);
-                } else if (data.action === 'removeFoodItem') {
-                    MenuController.handleRemoveFoodItem(ws, data);
-                } else if (data.action === 'updateFoodItemPrice') {
-                    MenuController.handleUpdateFoodItemPrice(ws, data);
-                } else if (data.action === 'updateFoodItemAvailability') {
-                    MenuController.handleUpdateFoodItemAvailability(ws, data);
-                } else if (data.action === 'getRecommendation') {
-                    MenuController.displayRecommendations(ws);
-                } else if (data.action === 'getMenu') {
-                    MenuController.displayMenu(ws);
-                } else if (data.action === 'getTopRecommendations') {
-                    MenuController.getTopRecommendations(ws);
-                } else if (data.action === 'rolloutFoodItem') {
-                    MenuController.rolloutFoodItems(ws, data);
-                } else if (data.action === 'voteFood') {
-                    MenuController.voteFoodItem(ws, data);
-                } else if (data.action === 'checkResponses') {
-                    MenuController.checkResponses(ws);
-                } else if (data.action === 'selectTodayMeal') {
-                    MenuController.selectTodayMeal(ws);
-                } else if (data.action === 'getNotifications') {
-                    NotificationController.getNotifications(ws, data);
-                } else if (data.action === 'getRolloutItems') {
-                    MenuController.getRolloutItems(ws);
-                } else if (data.action === 'saveSelectedMeal') {
-                    MenuController.saveSelectedMeal(ws, data);
-                } else if (data.action === 'giveFeedback') {
-                    MenuController.giveFeedback(ws);
-                } else if (data.action === 'LogLogout') {
-                    AuthService.logLogin(data.username, 'Logout');
-                } else if (data.action === 'provideFeedback') {
-                    MenuController.saveFeedback(ws, data);
-                }
+                await this.handleMessage(ws, data);
             });
 
             ws.on('close', () => {
                 console.log('Client disconnected');
             });
         });
+    }
+
+    private async handleMessage(ws: WebSocket, data: any) {
+        switch (data.action) {
+            case 'checkUserExists':
+                await this.authController.checkUserExists(ws, data);
+                break;
+            case 'login':
+                await this.authController.login(ws, data);
+                break;
+            case 'addFoodItem':
+                await this.menuController.handleAddFoodItem(ws, data);
+                break;
+            case 'removeFoodItem':
+                await this.menuController.handleRemoveFoodItem(ws, data);
+                break;
+            case 'updateFoodItemPrice':
+                await this.menuController.handleUpdateFoodItemPrice(ws, data);
+                break;
+            case 'updateFoodItemAvailability':
+                await this.menuController.handleUpdateFoodItemAvailability(ws, data);
+                break;
+            case 'getRecommendation':
+                await this.menuController.displayRecommendations(ws);
+                break;
+            case 'getMenu':
+                await this.menuController.displayMenu(ws);
+                break;
+            case 'getTopRecommendations':
+                await this.menuController.getTopRecommendations(ws);
+                break;
+            case 'rolloutFoodItem':
+                await this.menuController.rolloutFoodItems(ws, data);
+                break;
+            case 'voteFood':
+                await this.menuController.voteFoodItem(ws, data);
+                break;
+            case 'checkResponses':
+                await this.menuController.checkResponses(ws);
+                break;
+            case 'selectTodayMeal':
+                await this.menuController.selectTodayMeal(ws);
+                break;
+            case 'getNotifications':
+                await this.notificationController.getNotifications(ws, data);
+                break;
+            case 'getRolloutItems':
+                await this.menuController.getRolloutItems(ws);
+                break;
+            case 'saveSelectedMeal':
+                await this.menuController.saveSelectedMeal(ws, data);
+                break;
+            case 'giveFeedback':
+                await this.menuController.giveFeedback(ws);
+                break;
+            case 'LogLogout':
+                await this.authDB.logLogin(data.username, 'Logout');
+                break;
+            case 'provideFeedback':
+                await this.menuController.saveFeedback(ws, data);
+                break;
+            default:
+                console.warn(`Unknown action: ${data.action}`);
+                break;
+        }
     }
 }
