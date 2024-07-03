@@ -169,4 +169,55 @@ export class MenuController {
     async saveFeedback(ws, data: any) {
         await this.menuDB.provideFeedback(data);
     }
+
+    async getDiscardedMenuItems(ws) {
+        const discardedItems = await this.menuDB.fetchDiscardMenuItems();
+        ws.send(JSON.stringify({ status: discardedItems ? 'discardedItems' : 'error', discardedItems }));
+    }
+
+    async discardMenuItem(ws, data: any) {
+        const canUse = await this.menuDB.canUseFeature('discardMenuItem');
+        if (canUse) {
+            const isDiscarded = await this.menuDB.removeMenuItem(data.item_name);
+            await this.menuDB.logMonthlyUsage('discardMenuItem');
+            isDiscarded && this.notificationDB.createNotification('employee', `Chef has removed ${data.item_name} from Menu because of poor reviews.`);
+            ws.send(JSON.stringify({ status: isDiscarded ? 'printMessage' : 'error', message: `${data.item_name} successfully removed from the Menu.` }));
+            ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
+        } else {
+            ws.send(JSON.stringify({ status: 'printMessage', message: 'This feature is available only once a month. Come back next month to use this feature again.' }));
+            ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
+        }
+    }
+
+    async askDetailedFeedback(ws, data: any) {
+        const canUse = await this.menuDB.canUseFeature(`getDetailedFeedback-${data.item_name}`);
+        if (canUse) {
+            await this.menuDB.logMonthlyUsage(`getDetailedFeedback-${data.item_name}`);
+            this.notificationDB.createNotification('employee', `Chef has asked you to provide detailed feedback for ${data.item_name}. Select option 5 to provide feedback.`);
+            ws.send(JSON.stringify({ status: 'printMessage', message: `Employees have been notified to provide detailed feedback for ${data.item_name}.\n` }));
+            ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
+        } else {
+            ws.send(JSON.stringify({ status: 'printMessage', message: `Feedback for ${data.item_name} has been asked already this month. Try again next month.` }));
+            ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
+        }
+    }
+
+    async getDetailedFeedback(ws) {
+        const itemsForFeedback = await this.menuDB.getFeedbackItems();
+        if (itemsForFeedback.length) {
+            ws.send(JSON.stringify({ status: 'promptDetailedFeedback', itemsForFeedback }));
+        } else {
+            ws.send(JSON.stringify({ status: 'printMessage', message: 'Chef has not asked for detailed feedback of any menu item.' }));
+            ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
+        }
+    }
+
+    async saveDetailedFeedback(ws, data: any) {
+        await this.menuDB.saveDetailedFeedback(data);
+    }
+
+    async fetchDetailedFeedback(ws, data: any) {
+        const detailedFeedback = await this.menuDB.fetchDetailedFeedback(data.menu_item_name);
+        ws.send(JSON.stringify({ status: detailedFeedback ? 'printDetailedFeedback' : 'error', detailedFeedback }));
+    }
 }

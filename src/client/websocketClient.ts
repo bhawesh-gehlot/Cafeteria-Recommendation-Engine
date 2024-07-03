@@ -76,6 +76,15 @@ export class WebSocketClient {
             case 'selectedMenuItems':
                 this.feedback.giveFeedback(response.selectedItems);
                 break;
+            case 'discardedItems':
+                this.menu.handleDiscardMenuItems(response.discardedItems);
+                break;
+            case 'promptDetailedFeedback':
+                this.menu.promptDetailedFeedback(response.itemsForFeedback);
+                break;
+            case 'printDetailedFeedback':
+                this.menu.printDetailedFeedback(response.detailedFeedback);
+                break;
             default:
                 console.log('Unknown response status:', response.status);
         }
