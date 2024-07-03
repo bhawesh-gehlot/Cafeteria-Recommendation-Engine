@@ -1,4 +1,4 @@
-import { MenuItem } from '../definitions/Interfaces';
+import { DiscardMenuItem, MenuItem } from '../definitions/Interfaces';
 import pool from '../utils/db';
 import { RowDataPacket } from 'mysql2';
 
@@ -139,7 +139,7 @@ export class MenuDB {
         tomorrow.setDate(tomorrow.getDate() + 1);
         const date = tomorrow.toISOString().slice(0, 10);
 
-        const [empId] = await pool.query<RowDataPacket[]>('SELECT emp_id FROM User WHERE username = ?', [username]);
+        const empId = await this.getEmpIdByUsername(username);
 
         if (empId.length === 0) {
             return `User ${username} not found.`;
@@ -205,21 +205,28 @@ export class MenuDB {
         return responses;
     }
 
+    private async getItemIdByName(itemName: string): Promise<any> {
+        const [item] = await pool.query<RowDataPacket[]>(
+            'SELECT menu_item_id FROM Menu WHERE item_name = ?',
+            [itemName]
+        );
+        return item;
+    }
+
+    private async getEmpIdByUsername(username: string): Promise<any> {
+        const [empId] = await pool.query<RowDataPacket[]>(
+            'SELECT emp_id FROM User WHERE username = ?',
+            [username]
+        );
+        return empId;
+    }
+
     async saveSelectedMeal(data: { mealForBreakfast: string, mealForLunch: string, mealForDinner: string }): Promise<string> {
         const today = new Date().toISOString().slice(0, 10);
 
-        const [breakfastMeal] = await pool.query<RowDataPacket[]>(
-            'SELECT menu_item_id FROM Menu WHERE item_name = ?',
-            [data.mealForBreakfast]
-        );
-        const [lunchMeal] = await pool.query<RowDataPacket[]>(
-            'SELECT menu_item_id FROM Menu WHERE item_name = ?',
-            [data.mealForLunch]
-        );
-        const [dinnerMeal] = await pool.query<RowDataPacket[]>(
-            'SELECT menu_item_id FROM Menu WHERE item_name = ?',
-            [data.mealForDinner]
-        );
+        const breakfastMeal = await this.getItemIdByName(data.mealForBreakfast);
+        const lunchMeal = await this.getItemIdByName(data.mealForLunch);
+        const dinnerMeal = await this.getItemIdByName(data.mealForDinner);
 
         await pool.query(
             'INSERT INTO Selected_Meal (menu_item_id, meal_time, date) VALUES (?, \'breakfast\', ?), (?, \'lunch\', ?), (?, \'dinner\', ?)',
@@ -243,10 +250,7 @@ export class MenuDB {
     async provideFeedback(data: { username: string, menu_item_id: number, rating: number, comment: string }): Promise<boolean> {
         const today = new Date().toISOString().slice(0, 10);
 
-        const [empId] = await pool.query<RowDataPacket[]>(
-            'SELECT emp_id FROM User WHERE username = ?',
-            [data.username]
-        );
+        const empId = await this.getEmpIdByUsername(data.username);
 
         if (empId.length === 0) {
             console.error(`User ${data.username} not found.`);
@@ -288,6 +292,100 @@ export class MenuDB {
         } catch (error) {
             console.error(`Failed to insert sentiments: ${error}`);
             throw new Error('Error inserting sentiments.');
+        }
+    }
+
+    async fetchDiscardMenuItems(): Promise<DiscardMenuItem[]> {
+        try{
+            const [rows] = await pool.query<DiscardMenuItem[]>(`
+            SELECT m.menu_item_id, m.item_name, s.average_rating, s.sentiment_score
+            FROM Menu m
+            JOIN Sentiment s ON m.menu_item_id = s.menu_item_id
+            WHERE s.average_rating <= 2
+            OR s.sentiment_score <= 20`);
+            return rows;
+        } catch (error) {
+            console.error(`Failed to fetch discard menu items: ${error}`);
+            throw new Error('Error fetching discard menu items.');
+        }
+    }
+
+    async logMonthlyUsage(usageType: string): Promise<void> {
+        try {
+            await pool.query('INSERT INTO Monthly_Usage_Log (usage_type, last_used) VALUES (?, CURDATE()) ON DUPLICATE KEY UPDATE last_used = CURDATE()', [usageType]);
+        } catch (error) {
+            console.error(`Failed to log monthly usage: ${error}`);
+        }
+    }
+
+    async canUseFeature(usageType: string): Promise<boolean> {
+        try {
+            const [rows] = await pool.query<RowDataPacket[]>('SELECT last_used FROM Monthly_Usage_Log WHERE usage_type = ?', [usageType]);
+            if (rows.length > 0) {
+                const lastUsed = new Date(rows[0].last_used);
+                const today = new Date();
+                return lastUsed.getMonth() !== today.getMonth() || lastUsed.getFullYear() !== today.getFullYear();
+            }
+            return true;
+        } catch (error) {
+            console.error(`Failed to check feature usage: ${error}`);
+            return false;
+        }
+    }
+
+    async removeMenuItem(item_name: string): Promise<boolean> {
+        try {
+            const [result] = await pool.query('DELETE FROM Menu WHERE item_name = ?', [item_name]);
+            return (result as any).affectedRows > 0;
+        } catch (error) {
+            console.error(`Failed to remove menu item: ${error}`);
+            return false;
+        }
+    }
+
+    async getFeedbackItems(): Promise<RowDataPacket[]> {
+        try{
+            const [rows] = await pool.query<RowDataPacket[]>(`
+            SELECT REPLACE(usage_type, 'getDetailedFeedback-', '') as item_name
+            FROM Monthly_Usage_Log
+            WHERE usage_type LIKE 'getDetailedFeedback-%'`);
+            return rows;
+        } catch (error) {
+            console.error(`Failed to get menu items for feedback: ${error}`);
+            throw new Error('Error fetching menu items for feedback.');
+        }
+    }
+
+    async saveDetailedFeedback(data): Promise<void> {
+        try {
+            const emp_id = await this.getEmpIdByUsername(data.username);
+            const menu_item_id = await this.getItemIdByName(data.item_name);
+
+            await pool.query(`
+                INSERT INTO Feedback_Responses (menu_item_id, emp_id, question, response) 
+                VALUES 
+                    (?, ?, ?, ?), 
+                    (?, ?, ?, ?), 
+                    (?, ?, ?, ?)
+            `, [
+                menu_item_id[0].menu_item_id, emp_id[0].emp_id, data.question[0], data.feedback[0], 
+                menu_item_id[0].menu_item_id, emp_id[0].emp_id, data.question[1], data.feedback[1], 
+                menu_item_id[0].menu_item_id, emp_id[0].emp_id, data.question[2], data.feedback[2]
+            ]);
+        } catch (error) {
+            console.error(`Failed save detailed feedback: ${error}`);
+        }
+    }
+
+    async fetchDetailedFeedback(menu_item_name): Promise<RowDataPacket[]> {
+        try{
+            const menu_item_id = await this.getItemIdByName(menu_item_name);
+
+            const [rows] = await pool.query<RowDataPacket[]>('SELECT emp_id, question, response, response_date FROM Feedback_Responses WHERE menu_item_id = ?', [menu_item_id[0].menu_item_id]);
+            return rows;
+        } catch (error) {
+            console.error(`Failed to get detailed feedback: ${error}`);
+            throw new Error('Error fetching detailed feedback.');
         }
     }
 }

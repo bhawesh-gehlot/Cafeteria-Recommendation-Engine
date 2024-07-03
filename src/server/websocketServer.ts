@@ -94,6 +94,24 @@ export class WebSocketServer {
             case 'provideFeedback':
                 await this.menuController.saveFeedback(ws, data);
                 break;
+            case 'getDiscardMenuItems':
+                await this.menuController.getDiscardedMenuItems(ws);
+                break;
+            case 'discardMenuItem':
+                await this.menuController.discardMenuItem(ws, data);
+                break;
+            case 'askDetailedFeedback':
+                await this.menuController.askDetailedFeedback(ws, data);
+                break;
+            case 'getDetailedFeedback':
+                await this.menuController.getDetailedFeedback(ws);
+                break;
+            case 'saveDetailedFeedback':
+                await this.menuController.saveDetailedFeedback(ws, data);
+                break;
+            case 'fetchDetailedFeedback':
+                await this.menuController.fetchDetailedFeedback(ws, data);
+                break;
             default:
                 console.warn(`Unknown action: ${data.action}`);
                 break;
