@@ -239,5 +239,6 @@ export const EMPLOYEE_OPTIONS = [
     '3. View notifications',
     '4. See the Menu',
     '5. Provide Detailed Feedback',
-    '6. Logout',
+    '6. Update your Profile',
+    '7. Logout',
 ];

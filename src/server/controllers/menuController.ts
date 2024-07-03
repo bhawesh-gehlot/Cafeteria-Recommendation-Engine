@@ -29,10 +29,11 @@ export class MenuController {
     }
 
     async handleAddFoodItem(ws, data: any) {
-        const { name, price, mealTime, availabilityStatus } = data;
+        const { name, price, mealTime, availabilityStatus, itemAttributes } = data;
+        const attributes = this.getAttributes(itemAttributes);
         await this.handleAction(
             ws,
-            () => this.menuDB.addFoodItem(name, parseFloat(price), mealTime, availabilityStatus),
+            () => this.menuDB.addFoodItem(name, parseFloat(price), mealTime, availabilityStatus, attributes),
             'Food item added successfully.',
             'Failed to add food item.',
             [
@@ -117,10 +118,10 @@ export class MenuController {
         this.notificationDB.createNotification('employee', `Chef has rolled out ${items} for tomorrow's ${mealTime}.`);
     }
 
-    async getRolloutItems(ws) {
+    async getRolloutItems(ws, data) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            const rolledOutItems = await this.menuDB.getRolledOutItems(mealTime);
+            const rolledOutItems = await this.menuDB.getRolledOutItems(mealTime, data.username);
             const message = `Rolled out items for ${mealTime}: ${rolledOutItems}`;
             ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
         }
@@ -219,5 +220,19 @@ export class MenuController {
     async fetchDetailedFeedback(ws, data: any) {
         const detailedFeedback = await this.menuDB.fetchDetailedFeedback(data.menu_item_name);
         ws.send(JSON.stringify({ status: detailedFeedback ? 'printDetailedFeedback' : 'error', detailedFeedback }));
+    }
+
+    private getAttributes(userPreferences) {
+        const foodPreference = userPreferences.foodType === 'c' ? 'eggetarian' : userPreferences.foodType === 'b' ? 'non-vegetarian' : 'vegetarian';
+        const spiceLevel = userPreferences.spiceLevel === 'a' ? 'high' : userPreferences.spiceLevel === 'b' ? 'medium' : 'low';
+        const cuisine = userPreferences.cuisine === 'a' ? 'north-indian' : userPreferences.cuisine === 'b' ? 'south-indian' : 'other';
+        const sweetTooth = userPreferences.sweetTooth === 'a' ? 'yes' : 'no';
+        return { foodPreference, spiceLevel, cuisine, sweetTooth };
+    }
+
+    async savePreferences(ws, data: any) {
+        const username = data.username;
+        const preferences = this.getAttributes(data.userPreferences);
+        await this.menuDB.savePreferences(username, preferences);
     }
 }

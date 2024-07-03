@@ -49,11 +49,7 @@ export class Menu {
     async handleAdminOptions(choice: string) {
         switch (choice) {
             case '1':
-                const name = await getInput('Enter food item name: ');
-                const price = await getInput('Enter food item price: ');
-                const mealTime = await getInput('Enter meal time (breakfast/lunch/dinner): ');
-                const availabilityStatus = await getInput('Enter availability status (0/1): ');
-                this.client.send({ action: 'addFoodItem', name, price, mealTime, availabilityStatus });
+                this.addFoodItem();
                 break;
             case '2':
                 const removeName = await getInput('Enter the name of the food item to remove: ');
@@ -130,7 +126,7 @@ export class Menu {
     async handleEmployeeOptions(choice: string) {
         switch (choice) {
             case '1':
-                this.client.send({ action: 'getRolloutItems' });
+                this.client.send({ action: 'getRolloutItems', username: this.client.getUsername() });
                 setTimeout(async () => {
                     await this.voteTomorrowFood();
                 }, 200);
@@ -148,6 +144,9 @@ export class Menu {
                 this.client.send({ action: 'getDetailedFeedback' });
                 break;
             case '6':
+                this.updateUserProfile();
+                break;
+            case '7':
                 this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
                 process.stdout.write('\x1Bc');
                 this.printThankYouMessage();
@@ -182,6 +181,7 @@ export class Menu {
             }
             this.client.send({ action: 'rolloutFoodItem', mealTime, items });
         }
+        process.stdout.write('\x1Bc');
         console.log('Menu items rolled out successfully.\n');
         console.log("Please choose one of the following options:");
         this.handleResponse(this.client.getOptions());
@@ -313,5 +313,32 @@ export class Menu {
         });
         console.log("\nPlease choose one of the following options:");
         this.handleResponse(this.client.getOptions());
+    }
+
+    private async getAttributes() {
+        const foodType = await getInput('1) Please select one-\n a) Vegetarian\n b) Non-Vegetarian\n c) Eggetarian\nEnter your choice (a/b/c): ');
+        const spiceLevel = await getInput('2) Please select spice level-\n a) High\n b) Medium\n c) Low\nEnter your choice (a/b/c): ');
+        const cuisine = await getInput('3) Which cuisine?-\n a) North Indian\n b) South Indian\n c) Other\nEnter your choice (a/b/c): ');
+        const sweetTooth = await getInput('4) Sweet tooth?-\n a) Yes\n b) No\nEnter your choice (a/b): ');
+        return { foodType, spiceLevel, cuisine, sweetTooth };
+    }
+
+    async updateUserProfile() {
+        process.stdout.write('\x1Bc');
+        console.log('Please answer these questions to update your preferences....');
+        const userPreferences = await this.getAttributes();
+        this.client.send({ action: 'updateUserProfile', username: this.client.getUsername(), userPreferences });
+        console.log("\nYour profile has been updated successfully.\n");
+        console.log("Please choose one of the following options:");
+        this.handleResponse(this.client.getOptions());
+    }
+
+    async addFoodItem() {
+        const name = await getInput('Enter food item name: ');
+        const price = await getInput('Enter food item price: ');
+        const mealTime = await getInput('Enter meal time (breakfast/lunch/dinner): ');
+        const availabilityStatus = await getInput('Enter availability status (0/1): ');
+        const itemAttributes = await this.getAttributes();
+        this.client.send({ action: 'addFoodItem', name, price, mealTime, availabilityStatus, itemAttributes });
     }
 }

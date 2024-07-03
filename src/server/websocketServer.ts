@@ -80,7 +80,7 @@ export class WebSocketServer {
                 await this.notificationController.getNotifications(ws, data);
                 break;
             case 'getRolloutItems':
-                await this.menuController.getRolloutItems(ws);
+                await this.menuController.getRolloutItems(ws, data);
                 break;
             case 'saveSelectedMeal':
                 await this.menuController.saveSelectedMeal(ws, data);
@@ -111,6 +111,9 @@ export class WebSocketServer {
                 break;
             case 'fetchDetailedFeedback':
                 await this.menuController.fetchDetailedFeedback(ws, data);
+                break;
+            case 'updateUserProfile':
+                await this.menuController.savePreferences(ws, data);
                 break;
             default:
                 console.warn(`Unknown action: ${data.action}`);
