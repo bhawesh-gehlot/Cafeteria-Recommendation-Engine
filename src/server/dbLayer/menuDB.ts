@@ -3,7 +3,7 @@ import pool from '../utils/db';
 import { RowDataPacket } from 'mysql2';
 
 export class MenuDB {
-    async addFoodItem(name: string, price: number, mealTime: string, availabilityStatus: string): Promise<boolean> {
+    async addFoodItem(name: string, price: number, mealTime: string, availabilityStatus: string, itemAttributes): Promise<boolean> {
         try {
             const connection = await pool.getConnection();
             try {
@@ -11,6 +11,10 @@ export class MenuDB {
                     'INSERT INTO Menu (item_name, price, availability_status, meal_time) VALUES (?, ?, ?, ?)',
                     [name, price, availabilityStatus, mealTime]
                 );
+                const menu_item_id = await this.getItemIdByName(name);
+                if (menu_item_id.length > 0) {
+                    await connection.execute('INSERT INTO Menu_Item_Attribute (menu_item_id, food_type, spice_level, cuisine, sweet_tooth) VALUES (?, ?, ?, ?, ?)', [menu_item_id[0].menu_item_id, itemAttributes.foodPreference, itemAttributes.spiceLevel, itemAttributes.cuisine, itemAttributes.sweetTooth])
+                }
                 return true;
             } finally {
                 connection.release();
@@ -120,15 +124,22 @@ export class MenuDB {
         return `Menu items for ${mealTime} rolled out successfully.`;
     }
 
-    async getRolledOutItems(mealTime: string): Promise<string[]> {
+    async getRolledOutItems(mealTime: string, username: string): Promise<string[]> {
         const today = new Date().toISOString().slice(0, 10);
+        const emp_id = await this.getEmpIdByUsername(username);
+        const [userAttributes] = await pool.query<RowDataPacket[]>('SELECT food_preference, spice_level, cuisine, sweet_tooth FROM User_Profile WHERE emp_id = ?', [emp_id[0].emp_id]);
 
         const [rolledOutItems] = await pool.query<RowDataPacket[]>(
-            `SELECT Menu.item_name
-            FROM Rolledout_Item
-            JOIN Menu ON Rolledout_Item.menu_item_id = Menu.menu_item_id
-            WHERE Rolledout_Item.date = ? AND Rolledout_Item.meal_time = ?`,
-            [today, mealTime]
+            `SELECT m.item_name
+            FROM Rolledout_Item ri
+            INNER JOIN Menu m ON ri.menu_item_id = m.menu_item_id
+            INNER JOIN Menu_Item_Attribute mia ON m.menu_item_id = mia.menu_item_id
+            WHERE ri.date = ? AND ri.meal_time = ?
+            ORDER BY (CASE WHEN mia.food_type = ? THEN 0 ELSE 1 END),
+            (CASE WHEN mia.spice_level = ? THEN 0 ELSE 1 END),
+            (CASE WHEN mia.cuisine = ? THEN 0 ELSE 1 END),
+            (CASE WHEN mia.sweet_tooth = ? THEN 0 ELSE 1 END) DESC`,
+            [today, mealTime, userAttributes[0].food_preference, userAttributes[0].spice_level, userAttributes[0].cuisine, userAttributes[0].sweet_tooth]
         );
 
         return rolledOutItems.map(item => item.item_name);
@@ -386,6 +397,22 @@ export class MenuDB {
         } catch (error) {
             console.error(`Failed to get detailed feedback: ${error}`);
             throw new Error('Error fetching detailed feedback.');
+        }
+    }
+
+    async savePreferences(username, preferences): Promise<void> {
+        try {
+            const emp_id = await this.getEmpIdByUsername(username);
+
+            const [existingPreferences] = await pool.query<RowDataPacket[]>('SELECT emp_id FROM User_Profile WHERE emp_id = ?', [emp_id[0].emp_id]);
+            if (existingPreferences.length > 0) {
+                await pool.query('UPDATE User_Profile SET food_preference = ?, spice_level = ?, cuisine = ?, sweet_tooth = ? WHERE emp_id = ?', [preferences.foodPreference, preferences.spiceLevel, preferences.cuisine, preferences.sweetTooth, emp_id[0].emp_id]);
+            } else {
+                await pool.query('INSERT INTO User_Profile (emp_id, food_preference, spice_level, cuisine, sweet_tooth) VALUES (?, ?, ?, ?, ?)', [emp_id[0].emp_id, preferences.foodPreference, preferences.spiceLevel, preferences.cuisine, preferences.sweetTooth]);
+            }
+        } catch (error) {
+            console.error(`Failed to save preferences: ${error}`);
+            throw new Error('Error saving preferences.');
         }
     }
 }
