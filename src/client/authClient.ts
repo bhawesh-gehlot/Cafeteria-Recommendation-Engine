@@ -22,7 +22,7 @@ export class Authentication {
     }
 
     handleResponse(response: any) {
-        switch(response.status) {
+        switch (response.status) {
             case 'not_exists':
                 console.log(response.message);
                 this.promptForUsername();
@@ -32,14 +32,7 @@ export class Authentication {
                 this.promptForPassword();
                 break;
             case 'error':
-                console.log(response.message);
-                this.client.incrementRetries();
-                if (this.client.getRetries() < this.client.getMaxRetries()) {
-                    this.promptForPassword();
-                } else {
-                    console.log('Max retries reached. Terminating client.');
-                    this.client.send({ action: 'close' });
-                }
+                this.handleResponseError(response);
                 break;
             case 'success':
                 process.stdout.write('\x1Bc');
@@ -55,5 +48,17 @@ export class Authentication {
 
     login(username: string, password: string) {
         this.client.send({ action: 'login', username, password });
+    }
+
+    handleResponseError(response: any) {
+        console.log(response.message);
+        this.client.incrementRetries();
+        if (this.client.getRetries() < this.client.getMaxRetries()) {
+            this.promptForPassword();
+        } else {
+            console.log('Max retries reached. Terminating client.');
+            this.client.send({ action: 'close' });
+            process.exit(0);
+        }
     }
 }

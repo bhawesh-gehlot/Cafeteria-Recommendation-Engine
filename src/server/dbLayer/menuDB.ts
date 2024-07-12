@@ -61,6 +61,21 @@ export class MenuDB {
         }
     }
 
+    async getMenuItemNames(): Promise<string[]> {
+        try {
+            const connection = await pool.getConnection();
+            try {
+                const [rows] = await connection.query<RowDataPacket[]>('SELECT item_name FROM Menu');
+                return rows.map(row => row.item_name);
+            } finally {
+                connection.release();
+            }
+        } catch (error) {
+            console.error(error);
+            return [];
+        }
+    }
+
     async updateFoodItemAvailability(name: string, availabilityStatus: string): Promise<boolean> {
         try {
             const connection = await pool.getConnection();
@@ -195,9 +210,13 @@ export class MenuDB {
         );
 
         let responseString = `--- Responses for ${mealTime} ---\n`;
-        responses.forEach((response: any) => {
-            responseString += `Item: ${response.item_name}, Votes: ${response.vote_count}\n`;
-        });
+        if (responses.length > 0) {
+            responses.forEach((response: any) => {
+                responseString += `Item: ${response.item_name}, Votes: ${response.vote_count}\n`;
+            });
+        } else {
+            responseString += `No votes have been casted for ${mealTime}.\n`
+        }
 
         return responseString;
     }

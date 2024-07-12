@@ -61,8 +61,8 @@ export class WebSocketServer {
             case 'getMenu':
                 await this.menuController.displayMenu(ws);
                 break;
-            case 'getTopRecommendations':
-                await this.menuController.getTopRecommendations(ws);
+            case 'rolloutMenuItems':
+                await this.menuController.preRolloutOperations(ws);
                 break;
             case 'rolloutFoodItem':
                 await this.menuController.rolloutFoodItems(ws, data);

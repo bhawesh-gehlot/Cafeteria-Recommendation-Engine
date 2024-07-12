@@ -28,7 +28,7 @@ export class WebSocketClient {
         this.ws = new WebSocket('ws://localhost:8080');
 
         this.ws.on('open', () => {
-            console.log('Connected to the server');
+            console.log('\nConnected to the server');
             this.auth.promptForUsername();
         });
 
@@ -38,7 +38,7 @@ export class WebSocketClient {
         });
 
         this.ws.on('close', () => {
-            console.log('Disconnected from the server');
+            console.log('\nDisconnected from the server');
         });
 
         this.ws.on('error', (error) => {
@@ -53,6 +53,9 @@ export class WebSocketClient {
             case 'error':
             case 'success':
                 this.auth.handleResponse(response);
+                break;
+            case 'failure':
+                response?.message ? console.log(response.message): console.log('Operation failed. Please retry.');
                 break;
             case 'menu':
                 console.log(response.message);
@@ -70,8 +73,14 @@ export class WebSocketClient {
             case 'showNotifications':
                 this.notification.showNotifications(response.notifications);
                 break;
+            case 'getItemsToRollout':
+                this.menu.rolloutFoodItems(response.menuItemNames);
+                break;
+            case 'getVotesForTomorrowFood':
+                this.menu.voteTomorrowFood(response.allRolledOutItems);
+                break;
             case 'selectMeal':
-                this.menu.selectMeal();
+                this.menu.selectMeal(response.menuItemNames);
                 break;
             case 'selectedMenuItems':
                 this.feedback.giveFeedback(response.selectedItems);
