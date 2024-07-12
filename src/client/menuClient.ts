@@ -52,24 +52,17 @@ export class Menu {
                 this.addFoodItem();
                 break;
             case '2':
-                const removeName = await getInput('Enter the name of the food item to remove: ');
-                this.client.send({ action: 'removeFoodItem', name: removeName });
+                this.removeFoodItem();
                 break;
             case '3':
-                const updatePriceName = await getInput('Enter the name of the food item to update the price: ');
-                const newPrice = await getInput('Enter the new price: ');
-                this.client.send({ action: 'updateFoodItemPrice', name: updatePriceName, price: newPrice });
+                this.updateFoodItemPrice();
                 break;
             case '4':
-                const updateAvailabilityName = await getInput('Enter the name of the food item to update the availability: ');
-                const newAvailabilityStatus = await getInput('Enter new availability status (0/1): ');
-                this.client.send({ action: 'updateFoodItemAvailability', name: updateAvailabilityName, availabilityStatus: newAvailabilityStatus });
+                this.updateFoodItemAvailability();
                 break;
             case '5':
-                this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
-                process.stdout.write('\x1Bc');
-                this.printThankYouMessage();
-                process.exit(0);
+                this.logoutClient();
+                break;
             default:
                 console.log('Invalid option. Please select a valid option.');
                 this.client.getOptions().forEach(option => console.log(option));
@@ -87,10 +80,7 @@ export class Menu {
                 this.client.send({ action: 'getMenu' });
                 break;
             case '3':
-                this.client.send({ action: 'getTopRecommendations' });
-                setTimeout(async () => {
-                    await this.rolloutFoodItems();
-                }, 200);
+                this.client.send({ action: 'rolloutMenuItems' });
                 break;
             case '4':
                 this.client.send({ action: 'checkResponses' });
@@ -110,13 +100,10 @@ export class Menu {
                 this.client.send({ action: 'getDiscardMenuItems' });
                 break;
             case '9':
-                this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
-                process.stdout.write('\x1Bc');
-                this.printThankYouMessage();
-                process.exit(0);
+                this.logoutClient();
                 break;
             default:
-                console.log('Invalid option. Please select a valid option.');
+                console.log('Invalid option. Please select a valid option.\n');
                 this.client.getOptions().forEach(option => console.log(option));
                 this.promptForMenuOption();
                 break;
@@ -127,9 +114,6 @@ export class Menu {
         switch (choice) {
             case '1':
                 this.client.send({ action: 'getRolloutItems', username: this.client.getUsername() });
-                setTimeout(async () => {
-                    await this.voteTomorrowFood();
-                }, 200);
                 break;
             case '2':
                 this.client.send({ action: 'giveFeedback', username: this.client.getUsername() });
@@ -147,10 +131,7 @@ export class Menu {
                 this.updateUserProfile();
                 break;
             case '7':
-                this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
-                process.stdout.write('\x1Bc');
-                this.printThankYouMessage();
-                process.exit(0);
+                this.logoutClient();
                 break;
             default:
                 console.log('Invalid option. Please select a valid option.');
@@ -170,15 +151,10 @@ export class Menu {
         console.log("*****************************");
     }
 
-    async rolloutFoodItems() {
+    async rolloutFoodItems(menuItemNames: string[]) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            console.log(`Please enter the names of three items for ${mealTime}:`);
-            const items: Array<string> = [];
-            for (let i = 0; i < 3; i++) {
-                const item = await getInput(`Enter item ${i + 1}: `);
-                items.push(item);
-            }
+            const items = await this.inputRolloutItems(menuItemNames, mealTime);
             this.client.send({ action: 'rolloutFoodItem', mealTime, items });
         }
         process.stdout.write('\x1Bc');
@@ -187,23 +163,84 @@ export class Menu {
         this.handleResponse(this.client.getOptions());
     }
 
-    async voteTomorrowFood() {
+    private async inputRolloutItems(menuItemNames: string[], mealTime: string) {
+        const noOfItems = await this.getNumberOfItems(`Please enter the number of items to rollout for ${mealTime}: `);
+        console.log(`Please enter the names of ${noOfItems} items for ${mealTime}:`);
+        const items: string[] = [];
+        for (let i = 0; i < noOfItems; i++) {
+            let validItem = false;
+            while (!validItem) {
+                const item = (await getInput(`Enter item ${i + 1}: `)).toLowerCase();
+                if (items.includes(item)) {
+                    console.log('Item already selected. Please enter a different menu item.');
+                } else if (menuItemNames.includes(item)) {
+                    items.push(item);
+                    validItem = true;
+                } else {
+                    console.log('Invalid item name. Please enter a valid item name.');
+                }
+            }
+        }
+        return items;
+    }
+
+    private async getNumberOfItems(displayString: string) {
+        const noOfItems = await getInput(displayString);
+        if(!isNaN(Number(noOfItems))) {
+            return noOfItems;
+        } else {
+            console.log('Please enter a valid number.');
+            return this.getNumberOfItems(displayString);
+        }
+    }
+
+    async voteTomorrowFood(allRolledOutItems) {
+        const isResponseTaken: boolean = false;
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
-            console.log(`Please select one item for ${mealTime}:`);
-            const item = await getInput('Enter item: ');
-            this.client.send({ action: 'voteFood', username: this.client.getUsername(), item, mealTime });
+            if (!allRolledOutItems[mealTime]) {
+                console.log(`No items rolled out for ${mealTime}. Please wait for the chef to rollout items.`);
+                continue;
+            }
+            await this.getVoteFromEmployee(allRolledOutItems, mealTime, isResponseTaken);
         }
-        console.log('Your responses have been recorded successfully.\n');
-        console.log("Please choose one of the following options:");
+        if (isResponseTaken) {
+            console.log('Your responses have been recorded successfully.');
+        }
+        console.log("\nPlease choose one of the following options:");
         this.handleResponse(this.client.getOptions());
     }
 
-    async selectMeal() {
-        const mealForBreakfast = await getInput('Enter Meal to be cooked for breakfast: ');
-        const mealForLunch = await getInput('Enter Meal to be cooked for lunch: ');
-        const mealForDinner = await getInput('Enter Meal to be cooked for dinner: ');
+    private async getVoteFromEmployee(allRolledOutItems, mealTime, isResponseTaken) {
+        let validItem = false;
+        while (!validItem) {
+            console.log(`Please select one item for ${mealTime}:`);
+            const item = (await getInput('Enter item: ')).toLowerCase();
+            if (allRolledOutItems[mealTime].includes(item)) {
+                this.client.send({ action: 'voteFood', username: this.client.getUsername(), item, mealTime });
+                validItem = true;
+                isResponseTaken = true;
+            } else {
+                console.log(`Invalid item. Please select an item from the following list for ${mealTime}: ${allRolledOutItems[mealTime].join(', ')}`);
+            }
+        }
+    }
+
+    async selectMeal(menuItemNames) {
+        const mealForBreakfast = await this.getInputForMeal('Enter Meal to be cooked for breakfast: ', menuItemNames);
+        const mealForLunch = await this.getInputForMeal('Enter Meal to be cooked for lunch: ', menuItemNames);
+        const mealForDinner = await this.getInputForMeal('Enter Meal to be cooked for dinner: ', menuItemNames);
         this.client.send({ action: 'saveSelectedMeal', mealForBreakfast, mealForLunch, mealForDinner });
+    }
+
+    private async getInputForMeal(displayString: string, menuItemNames: string[]) {
+        const meal = (await getInput(displayString)).toLowerCase();
+        if (menuItemNames.includes(meal)) {
+            return meal;
+        } else {
+            console.log('Invalid item name. Please enter an item present in menu.');
+            return this.getInputForMeal(displayString, menuItemNames);
+        }
     }
 
     showRecommendations(recommendedItems) {
@@ -316,11 +353,23 @@ export class Menu {
     }
 
     private async getAttributes() {
-        const foodType = await getInput('1) Please select one-\n a) Vegetarian\n b) Non-Vegetarian\n c) Eggetarian\nEnter your choice (a/b/c): ');
-        const spiceLevel = await getInput('2) Please select spice level-\n a) High\n b) Medium\n c) Low\nEnter your choice (a/b/c): ');
-        const cuisine = await getInput('3) Which cuisine?-\n a) North Indian\n b) South Indian\n c) Other\nEnter your choice (a/b/c): ');
-        const sweetTooth = await getInput('4) Sweet tooth?-\n a) Yes\n b) No\nEnter your choice (a/b): ');
+        const foodType = await this.getValidAttributeInput('1) Please select one-\n a) Vegetarian\n b) Non-Vegetarian\n c) Eggetarian\nEnter your choice (a/b/c): ', 3);
+        const spiceLevel = await this.getValidAttributeInput('2) Please select spice level-\n a) High\n b) Medium\n c) Low\nEnter your choice (a/b/c): ', 3);
+        const cuisine = await this.getValidAttributeInput('3) Which cuisine?-\n a) North Indian\n b) South Indian\n c) Other\nEnter your choice (a/b/c): ', 3);
+        const sweetTooth = await this.getValidAttributeInput('4) Sweet tooth?-\n a) Yes\n b) No\nEnter your choice (a/b): ', 2);
         return { foodType, spiceLevel, cuisine, sweetTooth };
+    }
+
+    async getValidAttributeInput(displayString: string, noOfOptions: number) {
+        const validOptions = noOfOptions === 3 ? ['a', 'b', 'c'] : ['a', 'b'];
+        const attribute = (await getInput(displayString)).toLowerCase();
+    
+        if (validOptions.includes(attribute)) {
+            return attribute;
+        } else {
+            console.log(`Invalid input. Please enter either ${validOptions.join(', ')}.`);
+            return this.getValidAttributeInput(displayString, noOfOptions);
+        }
     }
 
     async updateUserProfile() {
@@ -335,10 +384,64 @@ export class Menu {
 
     async addFoodItem() {
         const name = await getInput('Enter food item name: ');
-        const price = await getInput('Enter food item price: ');
-        const mealTime = await getInput('Enter meal time (breakfast/lunch/dinner): ');
-        const availabilityStatus = await getInput('Enter availability status (0/1): ');
+        const price = await this.getFoodItemPrice('Enter food item price: ');
+        const mealTime = await this.getFoodItemMealTime();
+        const availabilityStatus = await this.getAvailabilityStatus();
         const itemAttributes = await this.getAttributes();
-        this.client.send({ action: 'addFoodItem', name, price, mealTime, availabilityStatus, itemAttributes });
+        this.client.send({ action: 'addFoodItem', name: name.toLowerCase(), price, mealTime, availabilityStatus, itemAttributes });
+    }
+
+    async getFoodItemPrice(displayString: string) {
+        const price = await getInput(displayString);
+        if(!isNaN(Number(price))) {
+            return price;
+        } else {
+            console.log('Invalid price. Please enter a valid price.');
+            return this.getFoodItemPrice(displayString);
+        }
+    }
+
+    async getFoodItemMealTime() {
+        const mealTime = await getInput('Enter meal time (breakfast/lunch/dinner): ');
+        if (['breakfast', 'lunch', 'dinner'].includes(mealTime.toLowerCase())) {
+            return mealTime.toLowerCase();
+        } else {
+            console.log('Invalid meal time. Please enter either breakfast, lunch, or dinner.');
+            return this.getFoodItemMealTime();
+        }
+    }
+
+    async getAvailabilityStatus() {
+        const availabilityStatus = await getInput('Enter availability status (0/1): ');
+        if (['0', '1'].includes(availabilityStatus)) {
+            return availabilityStatus;
+        } else {
+            console.log('Invalid availability status. Please enter either 0 or 1.');
+            return this.getAvailabilityStatus();
+        }
+    }
+
+    async removeFoodItem() {
+        const removeName = await getInput('Enter the name of the food item to remove: ');
+        this.client.send({ action: 'removeFoodItem', name: removeName.toLowerCase() });
+    }
+
+    async updateFoodItemPrice() {
+        const updatePriceName = await getInput('Enter the name of the food item to update the price: ');
+        const newPrice = await this.getFoodItemPrice('Enter new price: ');
+        this.client.send({ action: 'updateFoodItemPrice', name: updatePriceName.toLowerCase(), price: newPrice });
+    }
+
+    async updateFoodItemAvailability() {
+        const updateAvailabilityName = await getInput('Enter the name of the food item to update the availability: ');
+        const newAvailabilityStatus = await getInput('Enter new availability status (0/1): ');
+        this.client.send({ action: 'updateFoodItemAvailability', name: updateAvailabilityName, availabilityStatus: newAvailabilityStatus });
+    }
+
+    logoutClient() {
+        this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
+        process.stdout.write('\x1Bc');
+        this.printThankYouMessage();
+        process.exit(0);
     }
 }

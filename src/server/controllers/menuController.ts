@@ -21,7 +21,7 @@ export class MenuController {
         notifications: { role: string, message: string }[] = []
     ) {
         const success = await action();
-        ws.send(JSON.stringify({ status: success ? 'success' : 'error', message: success ? successMessage : errorMessage }));
+        ws.send(JSON.stringify({ status: success ? 'success' : 'failure', message: success ? successMessage : errorMessage }));
 
         if (success) {
             notifications.forEach((notification) => this.notificationDB.createNotification(notification.role, notification.message));
@@ -92,39 +92,51 @@ export class MenuController {
     async displayMenu(ws) {
         await this.recommendationController.calculateSentiments();
         const menuItems = await this.menuDB.getMenu();
-        ws.send(JSON.stringify({ status: menuItems ? 'displayMenu' : 'error', menuItems }));
+        ws.send(JSON.stringify({ status: menuItems ? 'displayMenu' : 'failure', menuItems }));
         ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
     async displayRecommendations(ws) {
         await this.recommendationController.calculateSentiments();
         const menuItems = await this.menuDB.getRecommendations();
-        ws.send(JSON.stringify({ status: menuItems ? 'showRecommendations' : 'error', menuItems }));
+        ws.send(JSON.stringify({ status: menuItems ? 'showRecommendations' : 'failure', menuItems }));
         ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
-    async getTopRecommendations(ws) {
+    private async getTopRecommendations(ws) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
             const recommendedItems = await this.menuDB.getRecommendedItems(mealTime);
             const message = `Top recommended items for ${mealTime}: ${recommendedItems}`;
-            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
         }
+    }
+
+    async preRolloutOperations(ws) {
+        await this.getTopRecommendations(ws);
+        const menuItemNames = await this.menuDB.getMenuItemNames();
+        ws.send(JSON.stringify({ status: menuItemNames ? 'getItemsToRollout' : 'failure', menuItemNames }));
     }
 
     async rolloutFoodItems(ws, data: any) {
         const { mealTime, items } = data;
         const message = await this.menuDB.rolloutMenuItems(mealTime, items, ws);
-        this.notificationDB.createNotification('employee', `Chef has rolled out ${items} for tomorrow's ${mealTime}.`);
+        ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
+        if (message === `Menu items for ${mealTime} rolled out successfully.`) {
+            this.notificationDB.createNotification('employee', `Chef has rolled out ${items} for tomorrow's ${mealTime}.`);
+        }
     }
 
     async getRolloutItems(ws, data) {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
+        let allRolledOutItems: any = [];
         for (const mealTime of mealTimes) {
             const rolledOutItems = await this.menuDB.getRolledOutItems(mealTime, data.username);
+            allRolledOutItems[mealTime] = rolledOutItems;
             const message = `Rolled out items for ${mealTime}: ${rolledOutItems}`;
-            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
         }
+        ws.send(JSON.stringify({ status: allRolledOutItems ? 'getVotesForTomorrowFood' : 'failure', allRolledOutItems }));
     }
 
     async voteFoodItem(ws, data: any) {
@@ -136,7 +148,7 @@ export class MenuController {
         const mealTimes = ['breakfast', 'lunch', 'dinner'];
         for (const mealTime of mealTimes) {
             const message = await this.menuDB.checkResponses(mealTime);
-            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+            ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
         }
         ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
@@ -148,17 +160,18 @@ export class MenuController {
             const responses = await this.menuDB.selectFoodToPrepare(today, mealTime);
             responses.forEach((response: any) => {
                 const message = `Item: ${response.item_name}, Votes: ${response.vote_count}`;
-                ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+                ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
             });
         }
-        setTimeout(() => {
-            ws.send(JSON.stringify({ status: 'selectMeal' }));
+        setTimeout(async () => {
+            const menuItemNames = await this.menuDB.getMenuItemNames();
+            ws.send(JSON.stringify({ status: 'selectMeal', menuItemNames }));
         }, 200);
     }
 
     async saveSelectedMeal(ws, data: any) {
         const message = await this.menuDB.saveSelectedMeal(data);
-        ws.send(JSON.stringify({ status: message ? 'printMessage' : 'error', message }));
+        ws.send(JSON.stringify({ status: message ? 'printMessage' : 'failure', message }));
         ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
     }
 
@@ -173,7 +186,7 @@ export class MenuController {
 
     async getDiscardedMenuItems(ws) {
         const discardedItems = await this.menuDB.fetchDiscardMenuItems();
-        ws.send(JSON.stringify({ status: discardedItems ? 'discardedItems' : 'error', discardedItems }));
+        ws.send(JSON.stringify({ status: discardedItems ? 'discardedItems' : 'failure', discardedItems }));
     }
 
     async discardMenuItem(ws, data: any) {
@@ -182,7 +195,7 @@ export class MenuController {
             const isDiscarded = await this.menuDB.removeMenuItem(data.item_name);
             await this.menuDB.logMonthlyUsage('discardMenuItem');
             isDiscarded && this.notificationDB.createNotification('employee', `Chef has removed ${data.item_name} from Menu because of poor reviews.`);
-            ws.send(JSON.stringify({ status: isDiscarded ? 'printMessage' : 'error', message: `${data.item_name} successfully removed from the Menu.` }));
+            ws.send(JSON.stringify({ status: isDiscarded ? 'printMessage' : 'failure', message: `${data.item_name} successfully removed from the Menu.` }));
             ws.send(JSON.stringify({ status: 'menu', message: '\nPlease choose one of the following options:' }));
         } else {
             ws.send(JSON.stringify({ status: 'printMessage', message: 'This feature is available only once a month. Come back next month to use this feature again.' }));
@@ -219,7 +232,7 @@ export class MenuController {
 
     async fetchDetailedFeedback(ws, data: any) {
         const detailedFeedback = await this.menuDB.fetchDetailedFeedback(data.menu_item_name);
-        ws.send(JSON.stringify({ status: detailedFeedback ? 'printDetailedFeedback' : 'error', detailedFeedback }));
+        ws.send(JSON.stringify({ status: detailedFeedback ? 'printDetailedFeedback' : 'failure', detailedFeedback }));
     }
 
     private getAttributes(userPreferences) {
