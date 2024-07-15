@@ -1,7 +1,7 @@
 import { WebSocketClient } from './websocketClient';
 import { getInput } from './utils/consoleInput';
 
-export class Authentication {
+export class User {
     private client: WebSocketClient;
 
     constructor(client: WebSocketClient) {
@@ -60,5 +60,22 @@ export class Authentication {
             this.client.send({ action: 'close' });
             process.exit(0);
         }
+    }
+
+    logoutClient() {
+        this.client.send({ action: 'LogLogout', username: this.client.getUsername() });
+        process.stdout.write('\x1Bc');
+        this.printThankYouMessage();
+        process.exit(0);
+    }
+
+    private printThankYouMessage() {
+        console.log("*****************************");
+        console.log("*                           *");
+        console.log("*   Thank You for using     *");
+        console.log("* Cafeteria Recommendation  *");
+        console.log("*        System....         *");
+        console.log("*                           *");
+        console.log("*****************************");
     }
 }

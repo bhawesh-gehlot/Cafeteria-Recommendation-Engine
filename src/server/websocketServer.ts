@@ -1,23 +1,23 @@
 import WebSocket from 'ws';
 import { Server } from 'http';
-import { AuthController } from './controllers/authController';
+import { UserController } from './controllers/userController';
 import { MenuController } from './controllers/menuController';
 import { NotificationController } from './controllers/notificationController';
-import { AuthDB } from './dbLayer/authDB';
+import { UserDB } from './dbLayer/userDB';
 
 export class WebSocketServer {
     private wss: WebSocket.Server;
     private menuController: MenuController;
     private notificationController: NotificationController;
-    private authController: AuthController;
-    private authDB: AuthDB;
+    private userController: UserController;
+    private userDB: UserDB;
 
     constructor(server: Server) {
         this.wss = new WebSocket.Server({ server });
         this.menuController = new MenuController();
         this.notificationController = new NotificationController();
-        this.authController = new AuthController(new AuthDB());
-        this.authDB = new AuthDB();
+        this.userController = new UserController(new UserDB());
+        this.userDB = new UserDB();
     }
 
     start() {
@@ -38,10 +38,10 @@ export class WebSocketServer {
     private async handleMessage(ws: WebSocket, data: any) {
         switch (data.action) {
             case 'checkUserExists':
-                await this.authController.checkUserExists(ws, data);
+                await this.userController.checkUserExists(ws, data);
                 break;
             case 'login':
-                await this.authController.login(ws, data);
+                await this.userController.login(ws, data);
                 break;
             case 'addFoodItem':
                 await this.menuController.handleAddFoodItem(ws, data);
@@ -89,7 +89,7 @@ export class WebSocketServer {
                 await this.menuController.giveFeedback(ws);
                 break;
             case 'LogLogout':
-                await this.authDB.logLogin(data.username, 'Logout');
+                await this.userDB.logLogin(data.username, 'Logout');
                 break;
             case 'provideFeedback':
                 await this.menuController.saveFeedback(ws, data);

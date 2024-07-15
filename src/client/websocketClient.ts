@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { Authentication } from './authClient';
+import { User } from './userClient';
 import { Menu } from './menuClient';
 import { Notification } from './notificationClient';
 import { Feedback } from './feedbackClient';
@@ -12,14 +12,14 @@ export class WebSocketClient {
     private options: string[] = [];
     private role: string;
 
-    private auth: Authentication;
+    private user: User;
     private menu: Menu;
     private notification: Notification;
     private feedback: Feedback;
 
     constructor() {
-        this.auth = new Authentication(this);
-        this.menu = new Menu(this);
+        this.user = new User(this);
+        this.menu = new Menu(this, this.user);
         this.notification = new Notification(this);
         this.feedback = new Feedback(this, this.menu);
     }
@@ -29,7 +29,7 @@ export class WebSocketClient {
 
         this.ws.on('open', () => {
             console.log('\nConnected to the server');
-            this.auth.promptForUsername();
+            this.user.promptForUsername();
         });
 
         this.ws.on('message', (data) => {
@@ -52,7 +52,7 @@ export class WebSocketClient {
             case 'exists':
             case 'error':
             case 'success':
-                this.auth.handleResponse(response);
+                this.user.handleResponse(response);
                 break;
             case 'failure':
                 response?.message ? console.log(response.message): console.log('Operation failed. Please retry.');
