@@ -11,6 +11,7 @@ export class RecommendationService {
     private intensifiers: Set<string>;
 
     constructor() {
+        this.recommendationDB = new RecommendationDB();
         this.positiveWords = new Set(POSITIVE_WORDS);
         this.negativeWords = new Set(NEGATIVE_WORDS);
         this.neutralWords = new Set(NEUTRAL_WORDS);

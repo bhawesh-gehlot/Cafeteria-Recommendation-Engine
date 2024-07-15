@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import pool from '../utils/db';
 import { UserId, UserPassword, UserRole } from '../definitions/Interfaces';
 
-export class AuthDB {
+export class UserDB {
     async userExists(username: string): Promise<boolean> {
         const connection = await pool.getConnection();
         try {

@@ -1,16 +1,16 @@
-import { AuthDB } from '../dbLayer/authDB';
+import { UserDB } from '../dbLayer/userDB';
 import { ADMIN_OPTIONS, CHEF_OPTIONS, EMPLOYEE_OPTIONS } from '../definitions/constants';
 
-export class AuthController {
-    private authDB: AuthDB;
+export class UserController {
+    private userDB: UserDB;
 
-    constructor(authDB: AuthDB) {
-        this.authDB = authDB;
+    constructor(userDB: UserDB) {
+        this.userDB = userDB;
     }
 
     async checkUserExists(ws, data: any): Promise<void> {
         const { username } = data;
-        const exists = await this.authDB.userExists(username);
+        const exists = await this.userDB.userExists(username);
 
         const response = exists
             ? { status: 'exists', message: 'User found. Please enter your password.' }
@@ -21,12 +21,12 @@ export class AuthController {
 
     async login(ws, data: any): Promise<void> {
         const { username, password } = data;
-        const authenticated = await this.authDB.authenticate(username, password);
+        const authenticated = await this.userDB.authenticate(username, password);
 
         if (authenticated) {
-            const role = await this.authDB.getUserRole(username);
-            ws.send(JSON.stringify({ status: 'success', role, message: `Welcome ${role}!` }));
-            await this.authDB.logLogin(username, 'Login');
+            const role = await this.userDB.getUserRole(username);
+            ws.send(JSON.stringify({ status: 'success', role, message: `Welcome ${username}! You are logged in as ${role}.\n` }));
+            await this.userDB.logLogin(username, 'Login');
             this.sendMenuOptions(ws, role);
         } else {
             ws.send(JSON.stringify({ status: 'error', message: 'Invalid password. Please try again.' }));
